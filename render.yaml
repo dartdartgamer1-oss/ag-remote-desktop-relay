@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: ag-remote-desktop-relay
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: AUTH_USER
+        value: admin
+      - key: AUTH_PASS
+        value: antigravity2026
+      - key: AGENT_KEY
+        value: ag-secret-agent-key-2026
