@@ -29,7 +29,11 @@ const server = http.createServer((req, res) => {
   res.end('Remote Desktop Relay Active');
 });
 
-const wss = new WebSocketServer({ server, maxPayload: 10 * 1024 * 1024 });
+const wss = new WebSocketServer({
+  server,
+  maxPayload: 10 * 1024 * 1024,
+  perMessageDeflate: false
+});
 
 function broadcastHostStatus() {
   const msg = JSON.stringify({
@@ -46,6 +50,9 @@ function broadcastHostStatus() {
 }
 
 wss.on('connection', (ws, req) => {
+  if (ws._socket && ws._socket.setNoDelay) {
+    ws._socket.setNoDelay(true);
+  }
   const parsed = url.parse(req.url, true);
   const { role, user, pass, key } = parsed.query;
 
@@ -63,8 +70,11 @@ wss.on('connection', (ws, req) => {
 
     ws.on('message', (data, isBinary) => {
       for (const v of viewerSockets) {
-        if (v.readyState === WebSocket.OPEN && v.bufferedAmount < 2 * 1024 * 1024) {
-          v.send(data, { binary: isBinary });
+        // Strict drop-frame backpressure: only send binary frame if viewer TCP buffer is nearly empty (<64KB)
+        if (v.readyState === WebSocket.OPEN) {
+          if (!isBinary || v.bufferedAmount < 65536) {
+            v.send(data, { binary: isBinary });
+          }
         }
       }
     });
