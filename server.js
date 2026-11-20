@@ -70,9 +70,10 @@ wss.on('connection', (ws, req) => {
 
     ws.on('message', (data, isBinary) => {
       for (const v of viewerSockets) {
-        // Strict drop-frame backpressure: only send binary frame if viewer TCP buffer is nearly empty (<64KB)
         if (v.readyState === WebSocket.OPEN) {
-          if (!isBinary || v.bufferedAmount < 65536) {
+          // Allow up to ~384KB in flight on relay->viewer socket so 30 FPS bursts aren't dropped,
+          // while preventing multi-megabyte buffer bloat.
+          if (!isBinary || v.bufferedAmount < 384 * 1024) {
             v.send(data, { binary: isBinary });
           }
         }
